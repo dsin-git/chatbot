@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .chat-container {
+            width: 800px;
+            height: 600px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .chat-header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .chat-header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .status-indicator {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #2ecc71;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .user-message {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .ai-message {
+            align-self: flex-start;
+            background: #f8f9fa;
+            color: #2c3e50;
+            border: 1px solid #e9ecef;
+        }
+        
+        .tool-usage {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            font-style: italic;
+            margin: 5px 0;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        
+        .tool-result {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            margin: 5px 0;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        
+        .chat-input {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 12px;
+        }
+        
+        .input-field {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        
+        .input-field:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .send-button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+        
+        .send-button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .send-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 18px;
+            align-self: flex-start;
+            max-width: 80%;
+        }
+        
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: #6c757d;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .tools-panel {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            font-size: 12px;
+        }
+        
+        .tool-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px 0;
+        }
+        
+        .tool-icon {
+            width: 16px;
+            height: 16px;
+            background: #667eea;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div class="tools-panel">
+        <h3>Available Tools</h3>
+        <div class="tool-item">
+            <div class="tool-icon"></div>
+            <span>Web Search</span>
+        </div>
+        <div class="tool-item">
+            <div class="tool-icon"></div>
+            <span>Calculator</span>
+        </div>
+        <div class="tool-item">
+            <div class="tool-icon"></div>
+            <span>File Operations</span>
+        </div>
+        <div class="tool-item">
+            <div class="tool-icon"></div>
+            <span>Code Executor</span>
+        </div>
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>AI Assistant with Tools</h1>
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span>Online</span>
+            </div>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="message ai-message">
+                Hi! I'm an AI assistant with access to various tools. I can help you with:
+                <br>• Web searches and research
+                <br>• Mathematical calculations
+                <br>• File operations and data processing
+                <br>• Code execution and analysis
+                <br><br>What would you like me to help you with?
+            </div>
+        </div>
+        
+        <div class="chat-input">
+            <input type="text" class="input-field" id="messageInput" placeholder="Ask me anything... I'll use tools if needed!" />
+            <button class="send-button" id="sendButton">Send</button>
+        </div>
+    </div>
+
+    <script>
+        class AIAgent {
+            constructor() {
+                this.tools = {
+                    webSearch: this.webSearchTool.bind(this),
+                    calculator: this.calculatorTool.bind(this),
+                    fileOps: this.fileOpsTool.bind(this),
+                    codeExecutor: this.codeExecutorTool.bind(this)
+                };
+            }
+            
+            async webSearchTool(query) {
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        const mockResults = [
+                            `Found 3 results for "${query}"`,
+                            `Top result: ${query} - Latest information and updates`,
+                            `Summary: Based on search results, here's what I found...`
+                        ];
+                        resolve(mockResults.join('\n'));
+                    }, 1000);
+                });
+            }
+            
+            async calculatorTool(expression) {
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        try {
+                            // Simple math evaluation (in real app, use safer parser)
+                            const result = eval(expression.replace(/[^0-9+\-*/.() ]/g, ''));
+                            resolve(`Calculation: ${expression} = ${result}`);
+                        } catch (e) {
+                            resolve(`Error in calculation: ${expression}`);
+                        }
+                    }, 500);
+                });
+            }
+            
+            async fileOpsTool(operation) {
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        const operations = {
+                            'list': 'Files: document.txt, data.csv, image.jpg',
+                            'read': 'File contents: Lorem ipsum dolor sit amet...',
+                            'write': 'File saved successfully',
+                            'default': `Performed file operation: ${operation}`
+                        };
+                        resolve(operations[operation] || operations.default);
+                    }, 800);
+                });
+            }
+            
+            async codeExecutorTool(code) {
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        resolve(`Code executed successfully.\nOutput: Hello, World!\nExecution time: 0.23s`);
+                    }, 1200);
+                });
+            }
+            
+            determineToolsNeeded(message) {
+                const tools = [];
+                const msg = message.toLowerCase();
+                
+                if (msg.includes('search') || msg.includes('find') || msg.includes('look up')) {
+                    tools.push({ name: 'webSearch', params: message });
+                }
+                if (msg.includes('calculate') || msg.includes('math') || /\d+[\+\-\*\/]\d+/.test(msg)) {
+                    const mathExpression = msg.match(/[\d+\-*/.() ]+/)?.[0] || '2+2';
+                    tools.push({ name: 'calculator', params: mathExpression });
+                }
+                if (msg.includes('file') || msg.includes('document') || msg.includes('save')) {
+                    tools.push({ name: 'fileOps', params: 'list' });
+                }
+                if (msg.includes('code') || msg.includes('execute') || msg.includes('run')) {
+                    tools.push({ name: 'codeExecutor', params: 'print("Hello, World!")' });
+                }
+                
+                return tools;
+            }
+            
+            async processMessage(message) {
+                const toolsNeeded = this.determineToolsNeeded(message);
+                let response = '';
+                
+                if (toolsNeeded.length === 0) {
+                    return "I understand your request. How can I help you with that?";
+                }
+                
+                for (const tool of toolsNeeded) {
+                    addToolUsage(`Using ${tool.name} tool...`);
+                    const result = await this.tools[tool.name](tool.params);
+                    addToolResult(result);
+                    response += `Using ${tool.name}: ${result}\n\n`;
+                }
+                
+                return `I've used ${toolsNeeded.length} tool(s) to help with your request:\n\n${response}Is there anything else you'd like me to help you with?`;
+            }
+        }
+        
+        const agent = new AIAgent();
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+            messageDiv.textContent = content;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function addToolUsage(content) {
+            const toolDiv = document.createElement('div');
+            toolDiv.className = 'tool-usage';
+            toolDiv.textContent = content;
+            chatMessages.appendChild(toolDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function addToolResult(content) {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'tool-result';
+            resultDiv.textContent = content;
+            chatMessages.appendChild(resultDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function showTyping() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing-indicator';
+            typingDiv.id = 'typingIndicator';
+            typingDiv.innerHTML = `
+                <span>AI is thinking</span>
+                <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            `;
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function hideTyping() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+        
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            addMessage(message, true);
+            messageInput.value = '';
+            sendButton.disabled = true;
+            
+            showTyping();
+            
+            try {
+                const response = await agent.processMessage(message);
+                hideTyping();
+                addMessage(response);
+            } catch (error) {
+                hideTyping();
+                addMessage('Sorry, I encountered an error while processing your request.');
+            }
+            
+            sendButton.disabled = false;
+            messageInput.focus();
+        }
+        
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Focus input on load
+        messageInput.focus();
+        
+        // Sample interactions
+        setTimeout(() => {
+            const samples = [
+                'Try: "Search for latest AI news"',
+                'Try: "Calculate 15 * 24 + 100"',
+                'Try: "List my files"',
+                'Try: "Execute some code"'
+            ];
+            
+            samples.forEach((sample, index) => {
+                setTimeout(() => {
+                    const sampleDiv = document.createElement('div');
+                    sampleDiv.className = 'message ai-message';
+                    sampleDiv.textContent = sample;
+                    sampleDiv.style.opacity = '0.7';
+                    sampleDiv.style.fontSize = '12px';
+                    chatMessages.appendChild(sampleDiv);
+                    if (index === samples.length - 1) {
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }
+                }, index * 500);
+            });
+        }, 2000);
+    </script>
+</body>
+</html>
